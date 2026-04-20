@@ -23,5 +23,6 @@ data class GameUiState(
     val score: Int = 0,
     val difficulty: Difficulty = Difficulty.MEDIUM,
     val gameMode: GameMode = GameMode.SOLO,
-    val isGameOver: Boolean = false
+    val isGameOver: Boolean = false,
+    val missedWindowCount: Int = 0
 )

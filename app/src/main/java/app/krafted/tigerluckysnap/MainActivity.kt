@@ -70,7 +70,8 @@ fun TigerApp() {
                     navController.navigate("gameOver/$score") {
                         popUpTo("home")
                     }
-                }
+                },
+                onBack = { navController.popBackStack() }
             )
         }
         composable(
@@ -87,7 +88,7 @@ fun TigerApp() {
                 },
                 onHome = {
                     navController.navigate("home") {
-                        popUpTo("home") { inclusive = true }
+                        popUpTo("home") { inclusive = false }
                     }
                 }
             )

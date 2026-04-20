@@ -76,7 +76,7 @@ private val rankGlows = listOf(
 @Composable
 fun LeaderboardScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val db = AppDatabase.getInstance(context)
+    val db = remember { AppDatabase.getInstance(context) }
     val scores by db.scoreDao().getAllTopScores().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
 
@@ -87,7 +87,6 @@ fun LeaderboardScreen(onBack: () -> Unit) {
     val listOffset = remember { Animatable(30f) }
 
     LaunchedEffect(Unit) {
-        // Purge any legacy blank-name rows from earlier buggy saves
         scope.launch { db.scoreDao().deleteUnnamedScores() }
         launch { headerAlpha.animateTo(1f, tween(500, easing = EaseOutCubic)) }
         launch { headerOffset.animateTo(0f, tween(500, easing = EaseOutBack)) }
@@ -116,7 +115,6 @@ fun LeaderboardScreen(onBack: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // ── Header ───────────────────────────────────────────────────
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.graphicsLayer {
@@ -124,7 +122,6 @@ fun LeaderboardScreen(onBack: () -> Unit) {
                     translationY = headerOffset.value
                 }
             ) {
-                // Tiger avatar
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.size(80.dp)
@@ -171,7 +168,6 @@ fun LeaderboardScreen(onBack: () -> Unit) {
 
                 Spacer(Modifier.height(6.dp))
 
-                // Golden divider
                 Canvas(
                     modifier = Modifier
                         .width(200.dp)
@@ -205,7 +201,6 @@ fun LeaderboardScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(18.dp))
 
-            // ── Score List ───────────────────────────────────────────────
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -246,7 +241,6 @@ fun LeaderboardScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(16.dp))
 
-            // ── Back Button ──────────────────────────────────────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -322,7 +316,6 @@ private fun ScoreRow(rank: Int, entry: ScoreEntity) {
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Rank badge
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -355,7 +348,6 @@ private fun ScoreRow(rank: Int, entry: ScoreEntity) {
 
             Spacer(Modifier.width(12.dp))
 
-            // Player info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = entry.playerName,
@@ -366,16 +358,8 @@ private fun ScoreRow(rank: Int, entry: ScoreEntity) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = entry.gameMode,
-                    color = rankColor.copy(alpha = 0.6f),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Normal,
-                    fontFamily = FontFamily.Serif
-                )
             }
 
-            // Score chip
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))

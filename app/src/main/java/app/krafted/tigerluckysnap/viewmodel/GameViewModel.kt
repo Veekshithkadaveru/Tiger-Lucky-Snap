@@ -3,8 +3,6 @@ package app.krafted.tigerluckysnap.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import app.krafted.tigerluckysnap.data.db.AppDatabase
-import app.krafted.tigerluckysnap.data.db.ScoreEntity
 import app.krafted.tigerluckysnap.game.SymbolDeck
 import app.krafted.tigerluckysnap.game.TigerAI
 import app.krafted.tigerluckysnap.model.Difficulty
@@ -23,7 +21,6 @@ import kotlinx.coroutines.launch
 
 class GameViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val db = AppDatabase.getInstance(application)
     private val deck = SymbolDeck()
     private var tigerAI: TigerAI? = null
 
@@ -35,16 +32,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var aiSnapJob: Job? = null
     private var snapWindowDeferred: CompletableDeferred<Unit>? = null
 
-    // Single source of truth for whether a match is currently tappable.
-    // Set to true when the match window opens, flipped to false by whichever
-    // resolver (tap / AI / timeout) fires first. Everyone else no-ops.
-    private var snapWindowActive = false
+    @Volatile private var snapWindowActive = false
 
-    // Whether the current visible match has already been settled — either
-    // the user scored it, or the timeout fired and cost a life. AI snapping
-    // does NOT flip this: the user always wins ties, so a tap on visually
-    // matching cards still scores even after the AI's coroutine fired.
-    private var currentMatchResolved = false
+    @Volatile private var currentMatchResolved = false
 
     fun initGame(mode: GameMode, difficulty: Difficulty) {
         cancelAllJobs()
@@ -97,6 +87,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun startSnapWindow(deferred: CompletableDeferred<Unit>) {
         snapWindowActive = true
+        val windowMs = getSnapWindowDuration(_uiState.value.cardsFlipped)
 
         tigerAI?.let { ai ->
             aiSnapJob = viewModelScope.launch {
@@ -108,11 +99,20 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         snapWindowJob = viewModelScope.launch {
-            delay(2000L)
+            delay(windowMs)
             if (snapWindowActive) {
                 handleMissedSnap(deferred)
             }
         }
+    }
+
+    private fun getSnapWindowDuration(cardsFlipped: Int): Long = when {
+        cardsFlipped < 10 -> 1500L
+        cardsFlipped < 20 -> 1200L
+        cardsFlipped < 30 -> 1000L
+        cardsFlipped < 40 -> 800L
+        cardsFlipped < 50 -> 650L
+        else              -> 500L
     }
 
     fun onSnapTapped() {
@@ -122,9 +122,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val visuallyMatches = state.currentSymbol != null && state.currentSymbol == state.previousSymbol
 
         if (visuallyMatches && !currentMatchResolved) {
-            // User always wins ties: even if the AI's snap coroutine already
-            // fired and closed the window, the tap still scores as long as the
-            // match hasn't been awarded or timed out yet.
             currentMatchResolved = true
             if (snapWindowActive) {
                 snapWindowActive = false
@@ -145,19 +142,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        // Cards still visually match but the match is already resolved
-        // (awarded or missed). Don't re-score and don't penalize.
         if (visuallyMatches) return
 
-        // Genuine false snap.
         loseLife(TigerReactionState.NEUTRAL, SelectionOutcome.WRONG)
     }
 
     private fun handleAiSnap(deferred: CompletableDeferred<Unit>) {
         if (!snapWindowActive) return
-        // AI's snap closes the window (cancelling the timeout so the user can't
-        // lose a life on this match) but does NOT resolve the match — the user
-        // may still tap on the still-visible matching cards to score.
         snapWindowActive = false
         snapWindowJob?.cancel()
         _uiState.update {
@@ -174,6 +165,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         snapWindowActive = false
         currentMatchResolved = true
         aiSnapJob?.cancel()
+        _uiState.update { it.copy(missedWindowCount = it.missedWindowCount + 1) }
         loseLife(TigerReactionState.NEUTRAL)
         deferred.complete(Unit)
     }
@@ -199,11 +191,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
         if (newLives <= 0) {
             flipJob?.cancel()
-            val finalScore = _uiState.value.score
-            val mode = _uiState.value.gameMode
-            viewModelScope.launch {
-                db.scoreDao().insert(ScoreEntity(score = finalScore, gameMode = mode.name))
-            }
         }
     }
 

@@ -86,14 +86,13 @@ fun GameOverScreen(
     val scope   = rememberCoroutineScope()
 
     val quote = when {
-        score >= 20 -> "Magnificent! You honor the temple!"
-        score >= 10 -> "Well played, worthy challenger!"
-        score >= 5  -> "Not bad... the tiger approves."
-        else        -> "The tiger demands a rematch!"
+        score >= 500 -> "Magnificent! You honor the temple!"
+        score >= 300 -> "Well played, worthy challenger!"
+        score >= 150 -> "Not bad... the tiger approves."
+        else         -> "The tiger demands a rematch!"
     }
     val tigerDrawable = if (score >= 10) R.drawable.tiger_react_excited else R.drawable.tiger_react_happy
 
-    // ── Bounce-in for tiger ──────────────────────────────────────────
     var bounceTarget by remember { mutableStateOf(0f) }
     val bounceScale by animateFloatAsState(
         targetValue  = bounceTarget,
@@ -101,13 +100,11 @@ fun GameOverScreen(
         label = "tigerBounce"
     )
 
-    // ── Staggered entry animations ──────────────────────────────────
     val cardAlpha  = remember { Animatable(0f) }
     val cardOffset = remember { Animatable(50f) }
     val btnAlpha   = remember { Animatable(0f) }
     val btnOffset  = remember { Animatable(30f) }
 
-    // ── Pulse ring on avatar ────────────────────────────────────────
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.15f,
@@ -120,7 +117,6 @@ fun GameOverScreen(
         label = "pa"
     )
 
-    // ── State ────────────────────────────────────────────────────────
     var playerName by remember { mutableStateOf("") }
     var scoreSaved by remember { mutableStateOf(false) }
 
@@ -147,10 +143,8 @@ fun GameOverScreen(
     fun saveAndPlay() { saveScore(); onPlayAgain() }
     fun saveAndHome() { saveScore(); onHome() }
 
-    // ════════════════════════════════════════════════════════════════
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // Background
         Image(
             painter = androidx.compose.ui.res.painterResource(R.drawable.bg_temple_3),
             contentDescription = null,
@@ -167,7 +161,6 @@ fun GameOverScreen(
             verticalArrangement = Arrangement.Center
         ) {
 
-            // ── Circular tiger with pulse ring ────────────────────────
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -204,7 +197,6 @@ fun GameOverScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── Frosted score card ────────────────────────────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -228,7 +220,6 @@ fun GameOverScreen(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
-                    // GAME OVER title
                     Text(
                         text = "GAME OVER",
                         color = Gold,
@@ -243,7 +234,6 @@ fun GameOverScreen(
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // Golden divider
                     Canvas(modifier = Modifier.width(180.dp).height(2.dp)) {
                         drawLine(
                             brush = Brush.horizontalGradient(
@@ -257,7 +247,6 @@ fun GameOverScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Score display
                     Row(
                         verticalAlignment = Alignment.Bottom,
                         horizontalArrangement = Arrangement.Center
@@ -286,7 +275,6 @@ fun GameOverScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Quote
                     Text(
                         text = quote,
                         color = Cream.copy(alpha = 0.80f),
@@ -299,7 +287,6 @@ fun GameOverScreen(
 
                     Spacer(modifier = Modifier.height(22.dp))
 
-                    // Name input
                     OutlinedTextField(
                         value = playerName,
                         onValueChange = { playerName = it.take(20) },
@@ -333,7 +320,6 @@ fun GameOverScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    // Save button + confirmation
                     if (playerName.isNotBlank()) {
                         Spacer(modifier = Modifier.height(10.dp))
                         if (!scoreSaved) {
@@ -391,7 +377,6 @@ fun GameOverScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ── Action buttons ────────────────────────────────────────
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -399,7 +384,6 @@ fun GameOverScreen(
                     .fillMaxWidth()
                     .graphicsLayer { alpha = btnAlpha.value; translationY = btnOffset.value }
             ) {
-                // Play Again — gold gradient
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -427,7 +411,6 @@ fun GameOverScreen(
                     )
                 }
 
-                // Home — ghost / glassy
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

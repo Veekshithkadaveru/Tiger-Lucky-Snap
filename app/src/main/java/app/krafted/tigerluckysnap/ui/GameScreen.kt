@@ -3,6 +3,7 @@ package app.krafted.tigerluckysnap.ui
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -24,14 +25,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Surface
+import androidx.activity.compose.BackHandler
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -47,7 +53,10 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import kotlinx.coroutines.delay
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -66,9 +75,33 @@ fun GameScreen(
     mode: GameMode,
     difficulty: Difficulty,
     onGameOver: (Int) -> Unit,
+    onBack: () -> Unit,
     viewModel: GameViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val haptic = LocalHapticFeedback.current
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = !uiState.isGameOver) {
+        showExitDialog = true
+    }
+
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text("Quit game?") },
+            text  = { Text("Your current score will be lost.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showExitDialog = false
+                    onBack()
+                }) { Text("QUIT") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false }) { Text("KEEP PLAYING") }
+            }
+        )
+    }
 
     LaunchedEffect(mode, difficulty) {
         viewModel.initGame(mode, difficulty)
@@ -80,7 +113,20 @@ fun GameScreen(
         }
     }
 
-    // A subtle breathing animation for the background/elements
+    var tooSlowVisible by remember { mutableStateOf(false) }
+    val tooSlowAlpha by animateFloatAsState(
+        targetValue = if (tooSlowVisible) 1f else 0f,
+        animationSpec = if (tooSlowVisible) tween(80) else tween(600),
+        label = "tooSlowFade"
+    )
+    LaunchedEffect(uiState.missedWindowCount) {
+        if (uiState.missedWindowCount > 0) {
+            tooSlowVisible = true
+            delay(350)
+            tooSlowVisible = false
+        }
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scalePulse by infiniteTransition.animateFloat(
         initialValue = 0.98f,
@@ -92,8 +138,6 @@ fun GameScreen(
         label = "bgPulse"
     )
 
-    // A fast, juicy pulse that runs continuously; the button only scales to it
-    // while isMatchActive is true, drawing the eye during the snap window.
     val snapPulseRaw by infiniteTransition.animateFloat(
         initialValue = 1f,
         targetValue = 1.08f,
@@ -107,7 +151,6 @@ fun GameScreen(
     val snapGlowAlpha = if (uiState.isMatchActive) 1f else 0f
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Bright, vibrant background without the dark muddy overlay
         Image(
             painter = painterResource(R.drawable.bg_temple_1),
             contentDescription = null,
@@ -115,7 +158,6 @@ fun GameScreen(
             modifier = Modifier.fillMaxSize().scale(1.05f).blur(16.dp)
         )
         
-        // A rich, warm vignette to focus the center but keep colors alive
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -123,7 +165,7 @@ fun GameScreen(
                     Brush.radialGradient(
                         colors = listOf(
                             Color.Transparent,
-                            Color(0x883E0000) // Deep red/brown for temple vibe
+                            Color(0x883E0000)
                         ),
                         radius = 1500f
                     )
@@ -137,7 +179,6 @@ fun GameScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Pill-shaped Top Bar with Gold Trim
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -150,7 +191,6 @@ fun GameScreen(
                         RoundedCornerShape(50)
                     )
             ) {
-                // inner rim
                 Box(
                     modifier = Modifier.matchParentSize().padding(4.dp).border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(46.dp))
                 )
@@ -202,7 +242,6 @@ fun GameScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Playful Tiger Mascot Area with floating effect when excited
             val tigerScale = if (uiState.tigerReaction == TigerReactionState.EXCITED) scalePulse else 1f
             Box(
                 contentAlignment = Alignment.Center,
@@ -211,7 +250,6 @@ fun GameScreen(
                     .height(190.dp)
                     .scale(tigerScale)
             ) {
-                // A glowing aura for the tiger
                 Box(
                     modifier = Modifier
                         .size(190.dp)
@@ -237,7 +275,6 @@ fun GameScreen(
 
             Spacer(modifier = Modifier.weight(0.5f))
 
-            // Cards "Table" Area - A distinct, themed playing area
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -248,14 +285,13 @@ fun GameScreen(
                     .background(
                         Brush.radialGradient(
                             colors = listOf(
-                                Color(0xFF1B5E20), // Casino green center
-                                Color(0xFF003300)  // Deep green edge
+                                Color(0xFF1B5E20),
+                                Color(0xFF003300)
                             )
                         ),
                         shape = RoundedCornerShape(32.dp)
                     )
             ) {
-                // Inner border
                 Box(
                     modifier = Modifier
                         .matchParentSize()
@@ -268,7 +304,6 @@ fun GameScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Previous Card (tilted back)
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1f)) {
                         Text(
                             "PREVIOUS",
@@ -286,7 +321,6 @@ fun GameScreen(
                                     .rotate(-8f)
                                     .shadow(16.dp, RoundedCornerShape(8.dp))
                             )
-                            // Dimmed overlay
                             Box(
                                 modifier = Modifier
                                     .matchParentSize()
@@ -297,7 +331,6 @@ fun GameScreen(
                         }
                     }
                     
-                    // Current Card (larger, front)
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.weight(1.2f)) {
                         Text(
                             "CURRENT",
@@ -308,7 +341,6 @@ fun GameScreen(
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
                         Box(contentAlignment = Alignment.Center) {
-                            // Highlight when it's a match
                             if (uiState.isMatchActive) {
                                 Box(
                                     modifier = Modifier
@@ -335,7 +367,6 @@ fun GameScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Arcade-style 3D Button — massive and juicy, pulses during match window
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -343,7 +374,6 @@ fun GameScreen(
                     .height(130.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Outer glow that appears only during the match window
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -368,13 +398,16 @@ fun GameScreen(
                         .scale(snapButtonScale)
                         .shadow(24.dp, RoundedCornerShape(36.dp), spotColor = Color(0xFFFF0000))
                         .clip(RoundedCornerShape(36.dp))
-                        .clickable { viewModel.onSnapTapped() }
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.onSnapTapped()
+                        }
                         .background(
                             Brush.verticalGradient(
                                 colors = listOf(
                                     Color(0xFFFF8A80),
                                     Color(0xFFD50000),
-                                    Color(0xFF880E4F) // Deep crimson shadow
+                                    Color(0xFF880E4F)
                                 )
                             )
                         )
@@ -383,9 +416,9 @@ fun GameScreen(
                                 4.dp,
                                 Brush.verticalGradient(
                                     listOf(
-                                        Color(0xFFFFFFFF), // Highlight on top
+                                        Color(0xFFFFFFFF),
                                         Color(0xFFFFD700),
-                                        Color(0x44000000)  // Shadow on bottom
+                                        Color(0x44000000)
                                     )
                                 )
                             ),
@@ -393,7 +426,6 @@ fun GameScreen(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Inner bezel
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -415,6 +447,32 @@ fun GameScreen(
                         )
                     )
                 }
+            }
+        }
+
+        if (tooSlowAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(tooSlowAlpha),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "TOO SLOW!",
+                    color = Color(0xFFFF4444),
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFamily = FontFamily.Serif,
+                    letterSpacing = 4.sp,
+                    textAlign = TextAlign.Center,
+                    style = TextStyle(
+                        shadow = Shadow(
+                            color = Color.Black,
+                            offset = Offset(0f, 6f),
+                            blurRadius = 18f
+                        )
+                    )
+                )
             }
         }
     }
