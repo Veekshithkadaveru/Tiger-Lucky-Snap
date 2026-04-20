@@ -81,8 +81,8 @@ fun TigerApp() {
             GameOverScreen(
                 score = score,
                 onPlayAgain = {
-                    navController.navigate("home") {
-                        popUpTo("home") { inclusive = true }
+                    navController.navigate("game/${GameMode.SOLO.name}/${Difficulty.MEDIUM.name}") {
+                        popUpTo("gameOver/{score}") { inclusive = true }
                     }
                 },
                 onHome = {

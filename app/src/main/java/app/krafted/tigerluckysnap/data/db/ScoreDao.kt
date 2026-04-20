@@ -10,6 +10,12 @@ interface ScoreDao {
     @Insert
     suspend fun insert(score: ScoreEntity)
 
-    @Query("SELECT * FROM scores WHERE gameMode = :mode ORDER BY score DESC LIMIT 10")
+    @Query("SELECT * FROM scores WHERE gameMode = :mode AND playerName != '' ORDER BY score DESC LIMIT 10")
     fun getTopScores(mode: String): Flow<List<ScoreEntity>>
+
+    @Query("SELECT * FROM scores WHERE playerName != '' ORDER BY score DESC LIMIT 20")
+    fun getAllTopScores(): Flow<List<ScoreEntity>>
+
+    @Query("DELETE FROM scores WHERE playerName = '' OR playerName IS NULL")
+    suspend fun deleteUnnamedScores()
 }
