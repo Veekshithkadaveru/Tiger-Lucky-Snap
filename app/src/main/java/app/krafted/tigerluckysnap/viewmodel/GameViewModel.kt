@@ -10,6 +10,7 @@ import app.krafted.tigerluckysnap.game.TigerAI
 import app.krafted.tigerluckysnap.model.Difficulty
 import app.krafted.tigerluckysnap.model.GameMode
 import app.krafted.tigerluckysnap.model.GameUiState
+import app.krafted.tigerluckysnap.model.SelectionOutcome
 import app.krafted.tigerluckysnap.model.TigerReactionState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
@@ -34,10 +35,23 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var aiSnapJob: Job? = null
     private var snapWindowDeferred: CompletableDeferred<Unit>? = null
 
+    // Single source of truth for whether a match is currently tappable.
+    // Set to true when the match window opens, flipped to false by whichever
+    // resolver (tap / AI / timeout) fires first. Everyone else no-ops.
+    private var snapWindowActive = false
+
+    // Whether the current visible match has already been settled — either
+    // the user scored it, or the timeout fired and cost a life. AI snapping
+    // does NOT flip this: the user always wins ties, so a tap on visually
+    // matching cards still scores even after the AI's coroutine fired.
+    private var currentMatchResolved = false
+
     fun initGame(mode: GameMode, difficulty: Difficulty) {
         cancelAllJobs()
         snapWindowDeferred?.complete(Unit)
         snapWindowDeferred = null
+        snapWindowActive = false
+        currentMatchResolved = false
         tigerAI = if (mode == GameMode.VS_AI) TigerAI(difficulty) else null
         _uiState.value = GameUiState(gameMode = mode, difficulty = difficulty)
         startFlipLoop()
@@ -66,31 +80,36 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val next = deck.nextSymbol()
         val isMatch = state.currentSymbol != null && state.currentSymbol == next
 
+        if (isMatch) currentMatchResolved = false
+
         _uiState.update {
             it.copy(
                 previousSymbol = it.currentSymbol,
                 currentSymbol = next,
                 cardsFlipped = it.cardsFlipped + 1,
                 isMatchActive = isMatch,
-                tigerReaction = if (isMatch) TigerReactionState.EXCITED else TigerReactionState.IDLE
+                tigerReaction = if (isMatch) TigerReactionState.EXCITED else TigerReactionState.IDLE,
+                selectionOutcome = SelectionOutcome.NONE
             )
         }
         return isMatch
     }
 
     private fun startSnapWindow(deferred: CompletableDeferred<Unit>) {
+        snapWindowActive = true
+
         tigerAI?.let { ai ->
             aiSnapJob = viewModelScope.launch {
                 delay(ai.reactionMs)
-                if (_uiState.value.isMatchActive) {
+                if (snapWindowActive) {
                     handleAiSnap(deferred)
                 }
             }
         }
 
         snapWindowJob = viewModelScope.launch {
-            delay(500L)
-            if (_uiState.value.isMatchActive) {
+            delay(2000L)
+            if (snapWindowActive) {
                 handleMissedSnap(deferred)
             }
         }
@@ -100,47 +119,81 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val state = _uiState.value
         if (state.isGameOver) return
 
-        if (state.isMatchActive) {
-            snapWindowJob?.cancel()
-            aiSnapJob?.cancel()
+        val visuallyMatches = state.currentSymbol != null && state.currentSymbol == state.previousSymbol
+
+        if (visuallyMatches && !currentMatchResolved) {
+            // User always wins ties: even if the AI's snap coroutine already
+            // fired and closed the window, the tap still scores as long as the
+            // match hasn't been awarded or timed out yet.
+            currentMatchResolved = true
+            if (snapWindowActive) {
+                snapWindowActive = false
+                snapWindowJob?.cancel()
+                aiSnapJob?.cancel()
+                snapWindowDeferred?.complete(Unit)
+            }
             val points = calculateScore(state.cardsFlipped)
             _uiState.update {
                 it.copy(
                     isMatchActive = false,
                     score = it.score + points,
-                    tigerReaction = TigerReactionState.HAPPY
+                    tigerReaction = TigerReactionState.HAPPY,
+                    selectionOutcome = SelectionOutcome.RIGHT,
+                    selectionEventCount = it.selectionEventCount + 1
                 )
             }
-            snapWindowDeferred?.complete(Unit)
-        } else {
-            loseLife(TigerReactionState.SURPRISED)
+            return
         }
+
+        // Cards still visually match but the match is already resolved
+        // (awarded or missed). Don't re-score and don't penalize.
+        if (visuallyMatches) return
+
+        // Genuine false snap.
+        loseLife(TigerReactionState.NEUTRAL, SelectionOutcome.WRONG)
     }
 
     private fun handleAiSnap(deferred: CompletableDeferred<Unit>) {
+        if (!snapWindowActive) return
+        // AI's snap closes the window (cancelling the timeout so the user can't
+        // lose a life on this match) but does NOT resolve the match — the user
+        // may still tap on the still-visible matching cards to score.
+        snapWindowActive = false
         snapWindowJob?.cancel()
         _uiState.update {
             it.copy(
-                isMatchActive = false,
-                tigerReaction = TigerReactionState.EXCITED
+                tigerReaction = TigerReactionState.EXCITED,
+                selectionOutcome = SelectionOutcome.NONE
             )
         }
         deferred.complete(Unit)
     }
 
     private fun handleMissedSnap(deferred: CompletableDeferred<Unit>) {
+        if (!snapWindowActive) return
+        snapWindowActive = false
+        currentMatchResolved = true
         aiSnapJob?.cancel()
-        loseLife(TigerReactionState.SAD)
+        loseLife(TigerReactionState.NEUTRAL)
         deferred.complete(Unit)
     }
 
-    private fun loseLife(reaction: TigerReactionState) {
+    private fun loseLife(
+        reaction: TigerReactionState,
+        selectionOutcome: SelectionOutcome = SelectionOutcome.NONE
+    ) {
         val newLives = _uiState.value.lives - 1
         _uiState.update {
             it.copy(
                 lives = newLives,
                 isMatchActive = false,
                 tigerReaction = reaction,
+                selectionOutcome = selectionOutcome,
+                selectionEventCount = if (selectionOutcome == SelectionOutcome.NONE) {
+                    it.selectionEventCount
+                } else {
+                    it.selectionEventCount + 1
+                },
                 isGameOver = newLives <= 0
             )
         }
@@ -177,6 +230,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         cancelAllJobs()
         snapWindowDeferred?.complete(Unit)
         snapWindowDeferred = null
+        snapWindowActive = false
+        currentMatchResolved = false
         _uiState.value = GameUiState()
     }
 
