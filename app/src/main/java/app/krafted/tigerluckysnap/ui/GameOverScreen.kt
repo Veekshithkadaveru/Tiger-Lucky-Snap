@@ -66,54 +66,66 @@ import androidx.compose.ui.unit.sp
 import app.krafted.tigerluckysnap.R
 import app.krafted.tigerluckysnap.data.db.AppDatabase
 import app.krafted.tigerluckysnap.data.db.ScoreEntity
+import app.krafted.tigerluckysnap.model.GameMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private val Gold       = Color(0xFFFFD700)
-private val GoldDeep   = Color(0xFFB8860B)
-private val GoldLight  = Color(0xFFFFEE88)
-private val Cream      = Color(0xFFFFF8E7)
-private val DarkBrown  = Color(0xFF1A0A00)
-private val CardBg     = Color(0xCC1A0A00)
+private val Gold = Color(0xFFFFD700)
+private val GoldDeep = Color(0xFFB8860B)
+private val GoldLight = Color(0xFFFFEE88)
+private val Cream = Color(0xFFFFF8E7)
+private val DarkBrown = Color(0xFF1A0A00)
+private val CardBg = Color(0xCC1A0A00)
 
 @Composable
 fun GameOverScreen(
     score: Int,
+    gameMode: GameMode = GameMode.SOLO,
     onPlayAgain: () -> Unit,
     onHome: () -> Unit
 ) {
     val context = LocalContext.current
-    val scope   = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
 
     val quote = when {
         score >= 500 -> "Magnificent! You honor the temple!"
         score >= 300 -> "Well played, worthy challenger!"
         score >= 150 -> "Not bad... the tiger approves."
-        else         -> "The tiger demands a rematch!"
+        else -> "The tiger demands a rematch!"
     }
-    val tigerDrawable = if (score >= 10) R.drawable.tiger_react_excited else R.drawable.tiger_react_happy
+    val tigerDrawable =
+        if (score >= 10) R.drawable.tiger_react_excited else R.drawable.tiger_react_happy
 
     var bounceTarget by remember { mutableStateOf(0f) }
     val bounceScale by animateFloatAsState(
-        targetValue  = bounceTarget,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        targetValue = bounceTarget,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
         label = "tigerBounce"
     )
 
-    val cardAlpha  = remember { Animatable(0f) }
+    val cardAlpha = remember { Animatable(0f) }
     val cardOffset = remember { Animatable(50f) }
-    val btnAlpha   = remember { Animatable(0f) }
-    val btnOffset  = remember { Animatable(30f) }
+    val btnAlpha = remember { Animatable(0f) }
+    val btnOffset = remember { Animatable(30f) }
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(tween(950, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(
+            tween(950, easing = FastOutSlowInEasing),
+            RepeatMode.Reverse
+        ),
         label = "ps"
     )
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.65f, targetValue = 0.1f,
-        animationSpec = infiniteRepeatable(tween(950, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        animationSpec = infiniteRepeatable(
+            tween(950, easing = FastOutSlowInEasing),
+            RepeatMode.Reverse
+        ),
         label = "pa"
     )
 
@@ -134,14 +146,24 @@ fun GameOverScreen(
         if (!scoreSaved && playerName.isNotBlank()) {
             scope.launch {
                 AppDatabase.getInstance(context).scoreDao().insert(
-                    ScoreEntity(playerName = playerName.trim(), score = score, gameMode = "SOLO")
+                    ScoreEntity(
+                        playerName = playerName.trim(),
+                        score = score,
+                        gameMode = gameMode.name
+                    )
                 )
                 scoreSaved = true
             }
         }
     }
-    fun saveAndPlay() { saveScore(); onPlayAgain() }
-    fun saveAndHome() { saveScore(); onHome() }
+
+    fun saveAndPlay() {
+        saveScore(); onPlayAgain()
+    }
+
+    fun saveAndHome() {
+        saveScore(); onHome()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
 
@@ -151,7 +173,9 @@ fun GameOverScreen(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
-        Box(modifier = Modifier.fillMaxSize().background(Color(0xDD1A0A00)))
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xDD1A0A00)))
 
         Column(
             modifier = Modifier
@@ -211,7 +235,12 @@ fun GameOverScreen(
                     .border(
                         BorderStroke(
                             1.5.dp,
-                            Brush.verticalGradient(listOf(Gold.copy(alpha = 0.6f), Gold.copy(alpha = 0.15f)))
+                            Brush.verticalGradient(
+                                listOf(
+                                    Gold.copy(alpha = 0.6f),
+                                    Gold.copy(alpha = 0.15f)
+                                )
+                            )
                         ),
                         RoundedCornerShape(28.dp)
                     )
@@ -228,19 +257,25 @@ fun GameOverScreen(
                         fontFamily = FontFamily.Serif,
                         letterSpacing = 6.sp,
                         style = TextStyle(
-                            shadow = Shadow(color = Color(0xAAFFD700), offset = Offset(0f, 4f), blurRadius = 14f)
+                            shadow = Shadow(
+                                color = Color(0xAAFFD700),
+                                offset = Offset(0f, 4f),
+                                blurRadius = 14f
+                            )
                         )
                     )
 
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    Canvas(modifier = Modifier.width(180.dp).height(2.dp)) {
+                    Canvas(modifier = Modifier
+                        .width(180.dp)
+                        .height(2.dp)) {
                         drawLine(
                             brush = Brush.horizontalGradient(
                                 listOf(Color.Transparent, Gold, GoldLight, Gold, Color.Transparent)
                             ),
                             start = Offset(0f, size.height / 2),
-                            end   = Offset(size.width, size.height / 2),
+                            end = Offset(size.width, size.height / 2),
                             strokeWidth = size.height
                         )
                     }
@@ -258,7 +293,11 @@ fun GameOverScreen(
                             fontWeight = FontWeight.Black,
                             fontFamily = FontFamily.Serif,
                             style = TextStyle(
-                                shadow = Shadow(color = Color.Black, offset = Offset(2f, 4f), blurRadius = 8f)
+                                shadow = Shadow(
+                                    color = Color.Black,
+                                    offset = Offset(2f, 4f),
+                                    blurRadius = 8f
+                                )
                             ),
                             lineHeight = 80.sp
                         )
@@ -282,7 +321,13 @@ fun GameOverScreen(
                         fontWeight = FontWeight.Medium,
                         fontFamily = FontFamily.Serif,
                         textAlign = TextAlign.Center,
-                        style = TextStyle(shadow = Shadow(color = Color.Black, offset = Offset(1f, 2f), blurRadius = 4f))
+                        style = TextStyle(
+                            shadow = Shadow(
+                                color = Color.Black,
+                                offset = Offset(1f, 2f),
+                                blurRadius = 4f
+                            )
+                        )
                     )
 
                     Spacer(modifier = Modifier.height(22.dp))
@@ -302,21 +347,21 @@ fun GameOverScreen(
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { saveScore() }),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor   = Gold,
+                            focusedBorderColor = Gold,
                             unfocusedBorderColor = Gold.copy(alpha = 0.4f),
-                            focusedTextColor     = Cream,
-                            unfocusedTextColor   = Cream,
-                            cursorColor          = Gold,
-                            focusedContainerColor   = Color(0x22FFD700),
+                            focusedTextColor = Cream,
+                            unfocusedTextColor = Cream,
+                            cursorColor = Gold,
+                            focusedContainerColor = Color(0x22FFD700),
                             unfocusedContainerColor = Color(0x11FFD700)
                         ),
                         textStyle = TextStyle(
-                            fontSize   = 16.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold,
                             fontFamily = FontFamily.Serif,
-                            color      = Cream
+                            color = Cream
                         ),
-                        shape    = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -337,7 +382,11 @@ fun GameOverScreen(
                                         BorderStroke(
                                             1.dp,
                                             Brush.horizontalGradient(
-                                                listOf(Gold.copy(alpha = 0.7f), GoldLight.copy(alpha = 0.5f), Gold.copy(alpha = 0.7f))
+                                                listOf(
+                                                    Gold.copy(alpha = 0.7f),
+                                                    GoldLight.copy(alpha = 0.5f),
+                                                    Gold.copy(alpha = 0.7f)
+                                                )
                                             )
                                         ),
                                         RoundedCornerShape(12.dp)
@@ -360,7 +409,12 @@ fun GameOverScreen(
                                 horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(text = "✓", color = Color(0xFF66FF88), fontSize = 18.sp, fontWeight = FontWeight.Black)
+                                Text(
+                                    text = "✓",
+                                    color = Color(0xFF66FF88),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Black
+                                )
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     text = "Score saved!",
@@ -392,7 +446,15 @@ fun GameOverScreen(
                         .clip(RoundedCornerShape(20.dp))
                         .background(Brush.verticalGradient(listOf(GoldLight, Gold, GoldDeep)))
                         .border(
-                            BorderStroke(2.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.4f), GoldDeep))),
+                            BorderStroke(
+                                2.dp,
+                                Brush.verticalGradient(
+                                    listOf(
+                                        Color.White.copy(alpha = 0.4f),
+                                        GoldDeep
+                                    )
+                                )
+                            ),
                             RoundedCornerShape(20.dp)
                         )
                         .clickable { saveAndPlay() },
@@ -406,7 +468,11 @@ fun GameOverScreen(
                         fontFamily = FontFamily.Serif,
                         letterSpacing = 2.sp,
                         style = TextStyle(
-                            shadow = Shadow(color = Color(0x44FFFFFF), offset = Offset(0f, 2f), blurRadius = 4f)
+                            shadow = Shadow(
+                                color = Color(0x44FFFFFF),
+                                offset = Offset(0f, 2f),
+                                blurRadius = 4f
+                            )
                         )
                     )
                 }
@@ -420,7 +486,13 @@ fun GameOverScreen(
                         .border(
                             BorderStroke(
                                 1.5.dp,
-                                Brush.horizontalGradient(listOf(Gold.copy(alpha = 0.5f), GoldLight.copy(alpha = 0.7f), Gold.copy(alpha = 0.5f)))
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Gold.copy(alpha = 0.5f),
+                                        GoldLight.copy(alpha = 0.7f),
+                                        Gold.copy(alpha = 0.5f)
+                                    )
+                                )
                             ),
                             RoundedCornerShape(16.dp)
                         )

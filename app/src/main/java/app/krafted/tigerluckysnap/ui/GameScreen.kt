@@ -220,20 +220,39 @@ fun GameScreen(
                         )
                     }
                     
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "CARDS",
-                            color = Color(0xFFFFD700),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            text = "${uiState.cardsFlipped}",
-                            color = Color.White,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    if (uiState.gameMode == GameMode.TIME_ATTACK) {
+                        val timerColor = if (uiState.timeRemainingSeconds <= 10) Color(0xFFFF4444) else Color.White
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "TIME",
+                                color = Color(0xFFFFD700),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = "${uiState.timeRemainingSeconds}s",
+                                color = timerColor,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "CARDS",
+                                color = Color(0xFFFFD700),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = "${uiState.cardsFlipped}",
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                     
                     LivesDisplay(lives = uiState.lives, modifier = Modifier.scale(1.2f))
@@ -472,7 +491,7 @@ fun GameScreen(
                             blurRadius = 18f
                         )
                     )
-                )
+                )¬
             }
         }
     }

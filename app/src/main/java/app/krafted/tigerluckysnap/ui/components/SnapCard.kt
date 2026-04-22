@@ -65,16 +65,26 @@ fun SnapCard(
         contentAlignment = Alignment.Center
     ) {
         if (!isFaceShowing) {
-            // Elegant solid deep-red card back with a thick gold border
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF8B0000))
-                    .border(
-                        BorderStroke(4.dp, Color(0xFFFFD700)),
-                        cardShape
-                    )
-            )
+                    .background(Color(0xFF7B0000))
+                    .border(BorderStroke(4.dp, Color(0xFFFFD700)), cardShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.card_back_tiger),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(6.dp)
+                        .border(BorderStroke(1.dp, Color(0x33FFD700)), RoundedCornerShape(8.dp))
+                )
+            }
         } else {
             // Face up: solid cream/white card with gold border and elevation
             Box(

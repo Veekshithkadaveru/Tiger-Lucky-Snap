@@ -30,11 +30,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var flipJob: Job? = null
     private var snapWindowJob: Job? = null
     private var aiSnapJob: Job? = null
+    private var countdownJob: Job? = null
     private var snapWindowDeferred: CompletableDeferred<Unit>? = null
 
-    @Volatile private var snapWindowActive = false
+    @Volatile
+    private var snapWindowActive = false
 
-    @Volatile private var currentMatchResolved = false
+    @Volatile
+    private var currentMatchResolved = false
 
     fun initGame(mode: GameMode, difficulty: Difficulty) {
         cancelAllJobs()
@@ -43,8 +46,35 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         snapWindowActive = false
         currentMatchResolved = false
         tigerAI = if (mode == GameMode.VS_AI) TigerAI(difficulty) else null
-        _uiState.value = GameUiState(gameMode = mode, difficulty = difficulty)
+        _uiState.value = when (mode) {
+            GameMode.HARDCORE -> GameUiState(gameMode = mode, difficulty = difficulty, lives = 1)
+            GameMode.TIME_ATTACK -> GameUiState(
+                gameMode = mode,
+                difficulty = difficulty,
+                timeRemainingSeconds = 60
+            )
+
+            else -> GameUiState(gameMode = mode, difficulty = difficulty)
+        }
         startFlipLoop()
+        if (mode == GameMode.TIME_ATTACK) startCountdown()
+    }
+
+    private fun startCountdown() {
+        countdownJob = viewModelScope.launch {
+            while (_uiState.value.timeRemainingSeconds > 0 && !_uiState.value.isGameOver) {
+                delay(1000L)
+                val remaining = _uiState.value.timeRemainingSeconds - 1
+                if (remaining <= 0) {
+                    flipJob?.cancel()
+                    snapWindowJob?.cancel()
+                    aiSnapJob?.cancel()
+                    _uiState.update { it.copy(timeRemainingSeconds = 0, isGameOver = true) }
+                    return@launch
+                }
+                _uiState.update { it.copy(timeRemainingSeconds = remaining) }
+            }
+        }
     }
 
     private fun startFlipLoop() {
@@ -112,14 +142,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         cardsFlipped < 30 -> 1000L
         cardsFlipped < 40 -> 800L
         cardsFlipped < 50 -> 650L
-        else              -> 500L
+        else -> 500L
     }
 
     fun onSnapTapped() {
         val state = _uiState.value
         if (state.isGameOver) return
 
-        val visuallyMatches = state.currentSymbol != null && state.currentSymbol == state.previousSymbol
+        val visuallyMatches =
+            state.currentSymbol != null && state.currentSymbol == state.previousSymbol
 
         if (visuallyMatches && !currentMatchResolved) {
             currentMatchResolved = true
@@ -213,19 +244,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         return 100 + speedBonus
     }
 
-    fun resetGame() {
-        cancelAllJobs()
-        snapWindowDeferred?.complete(Unit)
-        snapWindowDeferred = null
-        snapWindowActive = false
-        currentMatchResolved = false
-        _uiState.value = GameUiState()
-    }
-
     private fun cancelAllJobs() {
         flipJob?.cancel()
         snapWindowJob?.cancel()
         aiSnapJob?.cancel()
+        countdownJob?.cancel()
     }
 
     override fun onCleared() {

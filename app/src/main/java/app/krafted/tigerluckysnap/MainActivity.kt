@@ -67,7 +67,7 @@ fun TigerApp() {
                 mode = mode,
                 difficulty = difficulty,
                 onGameOver = { score ->
-                    navController.navigate("gameOver/$score") {
+                    navController.navigate("gameOver/$score/${mode.name}/${difficulty.name}") {
                         popUpTo("home")
                     }
                 },
@@ -75,15 +75,25 @@ fun TigerApp() {
             )
         }
         composable(
-            route = "gameOver/{score}",
-            arguments = listOf(navArgument("score") { type = NavType.IntType })
+            route = "gameOver/{score}/{mode}/{difficulty}",
+            arguments = listOf(
+                navArgument("score") { type = NavType.IntType },
+                navArgument("mode") { type = NavType.StringType },
+                navArgument("difficulty") { type = NavType.StringType }
+            )
         ) { backStackEntry ->
             val score = backStackEntry.arguments?.getInt("score") ?: 0
+            val mode =
+                GameMode.valueOf(backStackEntry.arguments?.getString("mode") ?: GameMode.SOLO.name)
+            val difficulty = Difficulty.valueOf(
+                backStackEntry.arguments?.getString("difficulty") ?: Difficulty.MEDIUM.name
+            )
             GameOverScreen(
                 score = score,
+                gameMode = mode,
                 onPlayAgain = {
-                    navController.navigate("game/${GameMode.SOLO.name}/${Difficulty.MEDIUM.name}") {
-                        popUpTo("gameOver/{score}") { inclusive = true }
+                    navController.navigate("game/${mode.name}/${difficulty.name}") {
+                        popUpTo("gameOver/{score}/{mode}/{difficulty}") { inclusive = true }
                     }
                 },
                 onHome = {

@@ -1,12 +1,18 @@
 package app.krafted.tigerluckysnap.model
 
-enum class Symbol {
-    COIN_BAG, ROUND_LANTERN, CROWN, STRAWBERRY, DIAMOND, GRAPES, STAR
+enum class Symbol(val displayName: String) {
+    COIN_BAG("Coin Bag"),
+    ROUND_LANTERN("Lantern"),
+    CROWN("Crown"),
+    STRAWBERRY("Strawberry"),
+    DIAMOND("Diamond"),
+    GRAPES("Grapes"),
+    STAR("Star"),
 }
 
 enum class Difficulty { EASY, MEDIUM, HARD }
 
-enum class GameMode { SOLO, VS_AI }
+enum class GameMode { SOLO, VS_AI, TIME_ATTACK, HARDCORE }
 
 enum class TigerReactionState { IDLE, HAPPY, EXCITED, NEUTRAL }
 enum class SelectionOutcome { NONE, RIGHT, WRONG }
@@ -24,5 +30,6 @@ data class GameUiState(
     val difficulty: Difficulty = Difficulty.MEDIUM,
     val gameMode: GameMode = GameMode.SOLO,
     val isGameOver: Boolean = false,
-    val missedWindowCount: Int = 0
+    val missedWindowCount: Int = 0,
+    val timeRemainingSeconds: Int = 0
 )
