@@ -31,5 +31,7 @@ data class GameUiState(
     val gameMode: GameMode = GameMode.SOLO,
     val isGameOver: Boolean = false,
     val missedWindowCount: Int = 0,
-    val timeRemainingSeconds: Int = 0
+    val timeRemainingSeconds: Int = 0,
+    val currentRound: Int = 1,
+    val matchesFound: Int = 0
 )

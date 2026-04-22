@@ -220,6 +220,22 @@ fun GameScreen(
                         )
                     }
                     
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "ROUND",
+                            color = Color(0xFFFFD700),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            text = "${uiState.currentRound}",
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
                     if (uiState.gameMode == GameMode.TIME_ATTACK) {
                         val timerColor = if (uiState.timeRemainingSeconds <= 10) Color(0xFFFF4444) else Color.White
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -491,7 +507,7 @@ fun GameScreen(
                             blurRadius = 18f
                         )
                     )
-                )¬
+                )
             }
         }
     }

@@ -80,7 +80,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private fun startFlipLoop() {
         flipJob = viewModelScope.launch {
             while (!_uiState.value.isGameOver) {
-                delay(getFlipInterval(_uiState.value.cardsFlipped))
+                delay(getFlipInterval(_uiState.value.currentRound))
                 if (_uiState.value.isGameOver) break
 
                 val matched = flipNextCard()
@@ -117,7 +117,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun startSnapWindow(deferred: CompletableDeferred<Unit>) {
         snapWindowActive = true
-        val windowMs = getSnapWindowDuration(_uiState.value.cardsFlipped)
+        val windowMs = getSnapWindowDuration(_uiState.value.currentRound)
 
         tigerAI?.let { ai ->
             aiSnapJob = viewModelScope.launch {
@@ -136,13 +136,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun getSnapWindowDuration(cardsFlipped: Int): Long = when {
-        cardsFlipped < 10 -> 1500L
-        cardsFlipped < 20 -> 1200L
-        cardsFlipped < 30 -> 1000L
-        cardsFlipped < 40 -> 800L
-        cardsFlipped < 50 -> 650L
-        else -> 500L
+    private fun getSnapWindowDuration(round: Int): Long {
+        val base = 1500L
+        val normalDrop = (round - 1) * 100L
+        val spikeDrop = (round / 5) * 150L
+        val speed = base - normalDrop - spikeDrop
+        return maxOf(400L, speed)
     }
 
     fun onSnapTapped() {
@@ -160,14 +159,18 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 aiSnapJob?.cancel()
                 snapWindowDeferred?.complete(Unit)
             }
-            val points = calculateScore(state.cardsFlipped)
+            val newMatchesFound = state.matchesFound + 1
+            val newRound = (newMatchesFound / 3) + 1
+            val points = calculateScore(newRound)
             _uiState.update {
                 it.copy(
                     isMatchActive = false,
                     score = it.score + points,
                     tigerReaction = TigerReactionState.HAPPY,
                     selectionOutcome = SelectionOutcome.RIGHT,
-                    selectionEventCount = it.selectionEventCount + 1
+                    selectionEventCount = it.selectionEventCount + 1,
+                    matchesFound = newMatchesFound,
+                    currentRound = newRound
                 )
             }
             return
@@ -225,22 +228,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun getFlipInterval(cardsFlipped: Int): Long = when {
-        cardsFlipped < 10 -> 2000L
-        cardsFlipped < 20 -> 1600L
-        cardsFlipped < 30 -> 1200L
-        cardsFlipped < 40 -> 900L
-        cardsFlipped < 50 -> 700L
-        else -> 500L
+    private fun getFlipInterval(round: Int): Long {
+        val base = 2000L
+        val normalDrop = (round - 1) * 150L
+        val spikeDrop = (round / 5) * 200L
+        val speed = base - normalDrop - spikeDrop
+        return maxOf(500L, speed)
     }
 
-    private fun calculateScore(cardsFlipped: Int): Int {
-        val speedBonus = when {
-            cardsFlipped >= 50 -> 50
-            cardsFlipped >= 30 -> 30
-            cardsFlipped >= 20 -> 20
-            else -> 0
-        }
+    private fun calculateScore(round: Int): Int {
+        val speedBonus = (round - 1) * 10
         return 100 + speedBonus
     }
 
