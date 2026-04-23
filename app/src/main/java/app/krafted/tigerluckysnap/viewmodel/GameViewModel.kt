@@ -137,11 +137,20 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun getSnapWindowDuration(round: Int): Long {
-        val base = 1500L
+        val diff = _uiState.value.difficulty
+        val base = when (diff) {
+            Difficulty.EASY -> 1500L
+            Difficulty.MEDIUM -> 1000L
+            Difficulty.HARD -> 500L
+        }
         val normalDrop = (round - 1) * 100L
         val spikeDrop = (round / 5) * 150L
-        val speed = base - normalDrop - spikeDrop
-        return maxOf(400L, speed)
+        val floor = when (diff) {
+            Difficulty.EASY -> 400L
+            Difficulty.MEDIUM -> 280L
+            Difficulty.HARD -> 150L
+        }
+        return maxOf(floor, base - normalDrop - spikeDrop)
     }
 
     fun onSnapTapped() {
@@ -161,7 +170,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             }
             val newMatchesFound = state.matchesFound + 1
             val newRound = (newMatchesFound / 3) + 1
-            val points = calculateScore(newRound)
+            val newCombo = state.comboCount + 1
+            val multiplier = comboMultiplier(newCombo)
+            val points = calculateScore(newRound) * multiplier
             _uiState.update {
                 it.copy(
                     isMatchActive = false,
@@ -170,7 +181,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     selectionOutcome = SelectionOutcome.RIGHT,
                     selectionEventCount = it.selectionEventCount + 1,
                     matchesFound = newMatchesFound,
-                    currentRound = newRound
+                    currentRound = newRound,
+                    comboCount = newCombo,
+                    comboMultiplier = multiplier,
+                    maxCombo = maxOf(it.maxCombo, newCombo)
                 )
             }
             return
@@ -184,13 +198,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private fun handleAiSnap(deferred: CompletableDeferred<Unit>) {
         if (!snapWindowActive) return
         snapWindowActive = false
+        currentMatchResolved = true
         snapWindowJob?.cancel()
         _uiState.update {
             it.copy(
                 tigerReaction = TigerReactionState.EXCITED,
-                selectionOutcome = SelectionOutcome.NONE
+                selectionOutcome = SelectionOutcome.NONE,
+                comboCount = 0,
+                comboMultiplier = 1
             )
         }
+        loseLife(TigerReactionState.EXCITED)
         deferred.complete(Unit)
     }
 
@@ -199,7 +217,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         snapWindowActive = false
         currentMatchResolved = true
         aiSnapJob?.cancel()
-        _uiState.update { it.copy(missedWindowCount = it.missedWindowCount + 1) }
+        _uiState.update {
+            it.copy(
+                missedWindowCount = it.missedWindowCount + 1,
+                comboCount = 0,
+                comboMultiplier = 1
+            )
+        }
         loseLife(TigerReactionState.NEUTRAL)
         deferred.complete(Unit)
     }
@@ -220,7 +244,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     it.selectionEventCount + 1
                 },
-                isGameOver = newLives <= 0
+                isGameOver = newLives <= 0,
+                comboCount = 0,
+                comboMultiplier = 1
             )
         }
         if (newLives <= 0) {
@@ -229,16 +255,32 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun getFlipInterval(round: Int): Long {
-        val base = 2000L
+        val diff = _uiState.value.difficulty
+        val base = when (diff) {
+            Difficulty.EASY -> 2000L
+            Difficulty.MEDIUM -> 1400L
+            Difficulty.HARD -> 800L
+        }
         val normalDrop = (round - 1) * 150L
         val spikeDrop = (round / 5) * 200L
-        val speed = base - normalDrop - spikeDrop
-        return maxOf(500L, speed)
+        val floor = when (diff) {
+            Difficulty.EASY -> 500L
+            Difficulty.MEDIUM -> 350L
+            Difficulty.HARD -> 200L
+        }
+        return maxOf(floor, base - normalDrop - spikeDrop)
     }
 
     private fun calculateScore(round: Int): Int {
         val speedBonus = (round - 1) * 10
         return 100 + speedBonus
+    }
+
+    private fun comboMultiplier(combo: Int): Int = when {
+        combo >= 10 -> 5
+        combo >= 5 -> 3
+        combo >= 2 -> 2
+        else -> 1
     }
 
     private fun cancelAllJobs() {

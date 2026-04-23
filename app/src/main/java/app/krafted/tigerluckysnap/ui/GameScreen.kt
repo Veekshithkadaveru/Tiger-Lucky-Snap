@@ -1,11 +1,13 @@
 package app.krafted.tigerluckysnap.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -25,7 +27,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.activity.compose.BackHandler
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,8 +37,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -50,13 +49,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import kotlinx.coroutines.delay
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -69,6 +69,7 @@ import app.krafted.tigerluckysnap.ui.components.PreviousCard
 import app.krafted.tigerluckysnap.ui.components.SnapCard
 import app.krafted.tigerluckysnap.ui.components.TigerReaction
 import app.krafted.tigerluckysnap.viewmodel.GameViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun GameScreen(
@@ -209,15 +210,37 @@ fun GameScreen(
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 1.5.sp
                         )
-                        Text(
-                            text = "${uiState.score}",
-                            color = Color.White,
-                            fontSize = 26.sp,
-                            fontWeight = FontWeight.Black,
-                            style = TextStyle(
-                                shadow = Shadow(color = Color(0xFFFF5252), offset = Offset(0f, 2f), blurRadius = 8f)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "${uiState.score}",
+                                color = Color.White,
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.Black,
+                                style = TextStyle(
+                                    shadow = Shadow(color = Color(0xFFFF5252), offset = Offset(0f, 2f), blurRadius = 8f)
+                                )
                             )
-                        )
+                            if (uiState.comboMultiplier > 1) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                listOf(Color(0xFFFF6D00), Color(0xFFFFAB00))
+                                            )
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "x${uiState.comboMultiplier}",
+                                        color = Color.White,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+                            }
+                        }
                     }
                     
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -387,9 +410,15 @@ fun GameScreen(
                                         .shadow(32.dp, RoundedCornerShape(12.dp), spotColor = Color(0xFF4CAF50))
                                 )
                             }
+                            val flipMs = when (difficulty) {
+                                Difficulty.EASY -> 300
+                                Difficulty.MEDIUM -> 200
+                                Difficulty.HARD -> 100
+                            }
                             SnapCard(
                                 symbol = uiState.currentSymbol,
                                 isFlipped = uiState.currentSymbol != null,
+                                flipDurationMs = flipMs,
                                 modifier = Modifier
                                     .width(160.dp)
                                     .rotate(2f)
@@ -508,6 +537,78 @@ fun GameScreen(
                         )
                     )
                 )
+            }
+        }
+
+        var stampVisible by remember { mutableStateOf(false) }
+        var stampLabel by remember { mutableStateOf("") }
+        var stampMultLabel by remember { mutableStateOf("") }
+        var stampColor by remember { mutableStateOf(Color(0xFFFFAB00)) }
+
+        val stampScale by animateFloatAsState(
+            targetValue = if (stampVisible) 1f else 2.5f,
+            animationSpec = if (stampVisible) {
+                spring(dampingRatio = 0.5f, stiffness = 1200f)
+            } else {
+                tween(100)
+            },
+            label = "stampScale"
+        )
+        val stampAlpha by animateFloatAsState(
+            targetValue = if (stampVisible) 1f else 0f,
+            animationSpec = if (stampVisible) tween(60) else tween(300),
+            label = "stampAlpha"
+        )
+
+        LaunchedEffect(uiState.comboCount) {
+            if (uiState.comboCount >= 3) {
+                stampLabel = "${uiState.comboCount} STREAK"
+                stampMultLabel = "x${uiState.comboMultiplier}"
+                stampColor = when {
+                    uiState.comboMultiplier >= 5 -> Color(0xFFFF1744)
+                    uiState.comboMultiplier >= 3 -> Color(0xFFFF6D00)
+                    else -> Color(0xFFFFAB00)
+                }
+                stampVisible = true
+                delay(600)
+                stampVisible = false
+            }
+        }
+
+        if (stampAlpha > 0.01f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(stampAlpha),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .scale(stampScale)
+                        .rotate(-3f)
+                        .border(4.dp, stampColor, RoundedCornerShape(8.dp))
+                        .padding(4.dp)
+                        .border(2.dp, stampColor, RoundedCornerShape(5.dp))
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = stampLabel,
+                            color = stampColor,
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 4.sp
+                        )
+                        Text(
+                            text = stampMultLabel,
+                            color = stampColor.copy(alpha = 0.8f),
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 2.sp
+                        )
+                    }
+                }
             }
         }
     }

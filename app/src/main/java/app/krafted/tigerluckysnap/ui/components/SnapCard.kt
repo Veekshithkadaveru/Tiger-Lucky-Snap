@@ -42,11 +42,12 @@ fun getSymbolDrawable(symbol: Symbol): Int = when (symbol) {
 fun SnapCard(
     symbol: Symbol?,
     isFlipped: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    flipDurationMs: Int = 300
 ) {
     val rotation by animateFloatAsState(
         targetValue = if (isFlipped) 180f else 0f,
-        animationSpec = tween(durationMillis = 300),
+        animationSpec = tween(durationMillis = flipDurationMs),
         label = "cardFlip"
     )
 

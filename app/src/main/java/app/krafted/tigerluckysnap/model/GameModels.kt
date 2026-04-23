@@ -33,5 +33,8 @@ data class GameUiState(
     val missedWindowCount: Int = 0,
     val timeRemainingSeconds: Int = 0,
     val currentRound: Int = 1,
-    val matchesFound: Int = 0
+    val matchesFound: Int = 0,
+    val comboCount: Int = 0,
+    val comboMultiplier: Int = 1,
+    val maxCombo: Int = 0
 )
