@@ -42,12 +42,17 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import app.krafted.tigerluckysnap.R
+import app.krafted.tigerluckysnap.data.UserPreferences
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun SplashScreen(onNavigateToHome: () -> Unit) {
+fun SplashScreen(
+    onNavigateToHome: () -> Unit,
+    onNavigateToOnboarding: () -> Unit
+) {
     val iconScale = remember { Animatable(0f) }
     val iconAlpha = remember { Animatable(0f) }
     val titleAlpha = remember { Animatable(0f) }
@@ -55,7 +60,9 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
     val underlineWidth = remember { Animatable(0f) }
     val subtitleAlpha = remember { Animatable(0f) }
 
-    // Infinite pulsing ring animation
+    
+    val context = LocalContext.current
+
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -75,7 +82,7 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
         ),
         label = "pulseAlpha"
     )
-    // Slow rotation for outer glow ring
+    
     val rotationAnim by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
@@ -104,7 +111,11 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
         launch { subtitleAlpha.animateTo(1f, tween(400, easing = EaseOutCubic)) }
 
         delay(1500)
-        onNavigateToHome()
+        if (UserPreferences.hasSeenOnboarding(context)) {
+            onNavigateToHome()
+        } else {
+            onNavigateToOnboarding()
+        }
     }
 
     Box(
@@ -130,7 +141,7 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
         ) {
             Spacer(Modifier.weight(0.3f))
 
-            // Circular tiger image with pulse ring
+            
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -141,7 +152,7 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
                         alpha = iconAlpha.value
                     }
             ) {
-                // Outer animated pulse ring
+                
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val radius = size.minDimension / 2f * pulseScale
                     drawCircle(
@@ -152,7 +163,7 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
                     )
                 }
 
-                // Rotating dashed arc ring
+                
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val radius = size.minDimension / 2f - 4.dp.toPx()
                     drawCircle(
@@ -171,7 +182,7 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
                     )
                 }
 
-                // Solid golden radial glow behind image
+                
                 Box(
                     modifier = Modifier
                         .size(180.dp)
@@ -183,7 +194,7 @@ fun SplashScreen(onNavigateToHome: () -> Unit) {
                         )
                 )
 
-                // Circular clipped tiger image
+                
                 Image(
                     painter = painterResource(R.drawable.tiger_react_idle),
                     contentDescription = null,

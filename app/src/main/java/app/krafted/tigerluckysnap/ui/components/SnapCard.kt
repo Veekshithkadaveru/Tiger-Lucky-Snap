@@ -31,11 +31,11 @@ import app.krafted.tigerluckysnap.model.Symbol
 fun getSymbolDrawable(symbol: Symbol): Int = when (symbol) {
     Symbol.COIN_BAG -> R.drawable.sym_coin_bag
     Symbol.ROUND_LANTERN -> R.drawable.sym_round_lantern
-    Symbol.CROWN -> R.drawable.sym_crown
-    Symbol.STRAWBERRY -> R.drawable.sym_strawberry
-    Symbol.DIAMOND -> R.drawable.sym_diamond
-    Symbol.GRAPES -> R.drawable.sym_grapes
-    Symbol.STAR -> R.drawable.sym_star
+    Symbol.TALL_LANTERN -> R.drawable.sym_crown
+    Symbol.CROWN -> R.drawable.sym_strawberry
+    Symbol.STRAWBERRY -> R.drawable.sym_diamond
+    Symbol.DIAMOND -> R.drawable.sym_grapes
+    Symbol.GRAPES -> R.drawable.sym_star
 }
 
 @Composable

@@ -16,6 +16,7 @@ import app.krafted.tigerluckysnap.ui.GameOverScreen
 import app.krafted.tigerluckysnap.ui.GameScreen
 import app.krafted.tigerluckysnap.ui.HomeScreen
 import app.krafted.tigerluckysnap.ui.LeaderboardScreen
+import app.krafted.tigerluckysnap.ui.OnboardingScreen
 import app.krafted.tigerluckysnap.ui.SplashScreen
 import app.krafted.tigerluckysnap.ui.theme.TigerLuckySnapTheme
 
@@ -36,9 +37,23 @@ fun TigerApp() {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
-            SplashScreen(onNavigateToHome = {
+            SplashScreen(
+                onNavigateToHome = {
+                    navController.navigate("home") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                },
+                onNavigateToOnboarding = {
+                    navController.navigate("onboarding") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable("onboarding") {
+            OnboardingScreen(onFinished = {
                 navController.navigate("home") {
-                    popUpTo("splash") { inclusive = true }
+                    popUpTo("onboarding") { inclusive = true }
                 }
             })
         }

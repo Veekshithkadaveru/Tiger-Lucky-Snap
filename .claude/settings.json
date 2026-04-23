@@ -3,7 +3,8 @@
     "allow": [
       "Bash(mkdir -p /tmp/design_unpacked)",
       "Bash(tar -xf /tmp/design_extracted.tar -C /tmp/design_unpacked)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(grep -E \"\\\\.kt$\")"
     ]
   }
 }

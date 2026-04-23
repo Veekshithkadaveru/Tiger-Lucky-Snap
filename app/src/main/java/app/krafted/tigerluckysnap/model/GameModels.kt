@@ -2,12 +2,12 @@ package app.krafted.tigerluckysnap.model
 
 enum class Symbol(val displayName: String) {
     COIN_BAG("Coin Bag"),
-    ROUND_LANTERN("Lantern"),
+    ROUND_LANTERN("Round Lantern"),
+    TALL_LANTERN("Tall Lantern"),
     CROWN("Crown"),
     STRAWBERRY("Strawberry"),
     DIAMOND("Diamond"),
     GRAPES("Grapes"),
-    STAR("Star"),
 }
 
 enum class Difficulty { EASY, MEDIUM, HARD }
