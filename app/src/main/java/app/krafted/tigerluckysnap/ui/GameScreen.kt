@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,6 +64,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.krafted.tigerluckysnap.R
 import app.krafted.tigerluckysnap.model.Difficulty
 import app.krafted.tigerluckysnap.model.GameMode
+import app.krafted.tigerluckysnap.model.Mission
 import app.krafted.tigerluckysnap.model.TigerReactionState
 import app.krafted.tigerluckysnap.ui.components.LivesDisplay
 import app.krafted.tigerluckysnap.ui.components.PreviousCard
@@ -82,6 +84,7 @@ fun GameScreen(
     val uiState by viewModel.uiState.collectAsState()
     val haptic = LocalHapticFeedback.current
     var showExitDialog by remember { mutableStateOf(false) }
+    var missionsExpanded by remember { mutableStateOf(false) }
 
     BackHandler(enabled = !uiState.isGameOver) {
         showExitDialog = true
@@ -294,11 +297,69 @@ fun GameScreen(
                         }
                     }
                     
-                    LivesDisplay(lives = uiState.lives, modifier = Modifier.scale(1.2f))
+                    if (uiState.gameMode != GameMode.TIME_ATTACK) {
+                        LivesDisplay(lives = uiState.lives, modifier = Modifier.scale(1.2f))
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            if (uiState.missions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                val completedCount = uiState.missions.count { it.isCompleted }
+                val panelShape = RoundedCornerShape(if (missionsExpanded) 16.dp else 50.dp)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(6.dp, panelShape)
+                        .background(
+                            Brush.verticalGradient(listOf(Color(0xCC1A0E00), Color(0xCC2A1800))),
+                            panelShape
+                        )
+                        .border(
+                            1.dp,
+                            Brush.linearGradient(listOf(Color(0xFFFFD700), Color(0x44FFD700))),
+                            panelShape
+                        )
+                        .clickable { missionsExpanded = !missionsExpanded }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "MISSIONS",
+                            color = Color(0xFFFFD700),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.5.sp
+                        )
+                        Text(
+                            text = "$completedCount / ${uiState.missions.size} DONE",
+                            color = Color(0xAAFFD700),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = if (missionsExpanded) "▲" else "▼",
+                            color = Color(0xAAFFD700),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    if (missionsExpanded) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        uiState.missions.forEachIndexed { index, mission ->
+                            if (index > 0) Spacer(modifier = Modifier.height(6.dp))
+                            MissionRow(mission = mission)
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             val tigerScale = if (uiState.tigerReaction == TigerReactionState.EXCITED) scalePulse else 1f
             Box(
@@ -435,13 +496,13 @@ fun GameScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp)
-                    .height(130.dp),
+                    .height(110.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(130.dp)
+                        .height(110.dp)
                         .scale(snapButtonScale * 1.05f)
                         .alpha(snapGlowAlpha)
                         .background(
@@ -451,17 +512,17 @@ fun GameScreen(
                                     Color.Transparent
                                 )
                             ),
-                            shape = RoundedCornerShape(36.dp)
+                            shape = RoundedCornerShape(30.dp)
                         )
                 )
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp)
+                        .height(102.dp)
                         .scale(snapButtonScale)
-                        .shadow(24.dp, RoundedCornerShape(36.dp), spotColor = Color(0xFFFF0000))
-                        .clip(RoundedCornerShape(36.dp))
+                        .shadow(24.dp, RoundedCornerShape(30.dp), spotColor = Color(0xFFFF0000))
+                        .clip(RoundedCornerShape(30.dp))
                         .clickable {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             viewModel.onSnapTapped()
@@ -486,7 +547,7 @@ fun GameScreen(
                                     )
                                 )
                             ),
-                            RoundedCornerShape(36.dp)
+                            RoundedCornerShape(30.dp)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -494,11 +555,11 @@ fun GameScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(8.dp)
-                            .border(2.dp, Color(0x33000000), RoundedCornerShape(28.dp))
+                            .border(2.dp, Color(0x33000000), RoundedCornerShape(24.dp))
                     )
                     Text(
                         text = "S N A P !",
-                        fontSize = 46.sp,
+                        fontSize = 39.sp,
                         fontWeight = FontWeight.Black,
                         color = Color(0xFFFFF9C4),
                         letterSpacing = 6.sp,
@@ -610,6 +671,154 @@ fun GameScreen(
                     }
                 }
             }
+        }
+
+        var completedMissionIds by remember { mutableStateOf(setOf<String>()) }
+        var missionStampVisible by remember { mutableStateOf(false) }
+        var missionStampPoints by remember { mutableStateOf(0) }
+        var missionStampDesc by remember { mutableStateOf("") }
+
+        val missionStampScale by animateFloatAsState(
+            targetValue = if (missionStampVisible) 1f else 2.5f,
+            animationSpec = if (missionStampVisible) spring(dampingRatio = 0.5f, stiffness = 1200f) else tween(100),
+            label = "missionStampScale"
+        )
+        val missionStampAlpha by animateFloatAsState(
+            targetValue = if (missionStampVisible) 1f else 0f,
+            animationSpec = if (missionStampVisible) tween(60) else tween(300),
+            label = "missionStampAlpha"
+        )
+
+        LaunchedEffect(uiState.missions) {
+            val currentCompletedIds = uiState.missions.filter { it.isCompleted }.map { it.id }.toSet()
+            val newlyCompleted = currentCompletedIds - completedMissionIds
+            if (newlyCompleted.isNotEmpty()) {
+                val firstNewId = newlyCompleted.first()
+                val mission = uiState.missions.find { it.id == firstNewId }
+                missionStampPoints = mission?.rewardPoints ?: 0
+                missionStampDesc = mission?.description ?: ""
+                missionStampVisible = true
+                delay(1800)
+                missionStampVisible = false
+            }
+            completedMissionIds = currentCompletedIds
+        }
+
+        if (missionStampAlpha > 0.01f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 160.dp)
+                    .alpha(missionStampAlpha),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .scale(missionStampScale)
+                        .rotate(4f)
+                        .shadow(24.dp, RoundedCornerShape(12.dp), spotColor = Color(0xFF4CAF50))
+                        .background(
+                            Brush.verticalGradient(listOf(Color(0xEE0D2D0D), Color(0xEE1A4020))),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .border(
+                            3.dp,
+                            Brush.linearGradient(listOf(Color(0xFF81C784), Color(0xFF4CAF50))),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(horizontal = 28.dp, vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "MISSION COMPLETE",
+                            color = Color(0xFF81C784),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 3.sp
+                        )
+                        if (missionStampDesc.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = missionStampDesc,
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 0.5.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "+$missionStampPoints PTS",
+                            color = Color(0xFFFFD700),
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 2.sp,
+                            style = TextStyle(
+                                shadow = Shadow(
+                                    color = Color(0xFF4CAF50),
+                                    offset = Offset(0f, 4f),
+                                    blurRadius = 12f
+                                )
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MissionRow(mission: Mission) {
+    val progress = (mission.currentValue.toFloat() / mission.targetValue).coerceIn(0f, 1f)
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(600, easing = FastOutSlowInEasing),
+        label = "missionProgress"
+    )
+    val textColor = if (mission.isCompleted) Color(0xFF4CAF50) else Color(0xCCFFFFFF)
+    val barBrush = if (mission.isCompleted)
+        Brush.horizontalGradient(listOf(Color(0xFF4CAF50), Color(0xFF81C784)))
+    else
+        Brush.horizontalGradient(listOf(Color(0xFFFFD700), Color(0xFFFF6D00)))
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = mission.description,
+                color = textColor,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = if (mission.isCompleted) "✓  +${mission.rewardPoints}pts" else "${mission.currentValue}/${mission.targetValue}",
+                color = textColor,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+        }
+        Spacer(modifier = Modifier.height(3.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Color(0x33FFFFFF))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(animatedProgress)
+                    .fillMaxHeight()
+                    .background(barBrush)
+            )
         }
     }
 }

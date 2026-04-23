@@ -36,5 +36,15 @@ data class GameUiState(
     val matchesFound: Int = 0,
     val comboCount: Int = 0,
     val comboMultiplier: Int = 1,
-    val maxCombo: Int = 0
+    val maxCombo: Int = 0,
+    val missions: List<Mission> = emptyList()
+)
+
+data class Mission(
+    val id: String,
+    val description: String,
+    val targetValue: Int,
+    val currentValue: Int = 0,
+    val isCompleted: Boolean = false,
+    val rewardPoints: Int
 )

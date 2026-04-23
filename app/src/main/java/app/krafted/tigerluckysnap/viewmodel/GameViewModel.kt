@@ -8,6 +8,7 @@ import app.krafted.tigerluckysnap.game.TigerAI
 import app.krafted.tigerluckysnap.model.Difficulty
 import app.krafted.tigerluckysnap.model.GameMode
 import app.krafted.tigerluckysnap.model.GameUiState
+import app.krafted.tigerluckysnap.model.Mission
 import app.krafted.tigerluckysnap.model.SelectionOutcome
 import app.krafted.tigerluckysnap.model.TigerReactionState
 import kotlinx.coroutines.CompletableDeferred
@@ -46,19 +47,27 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         snapWindowActive = false
         currentMatchResolved = false
         tigerAI = if (mode == GameMode.VS_AI) TigerAI(difficulty) else null
+        val initialMissions = generateMissions()
         _uiState.value = when (mode) {
-            GameMode.HARDCORE -> GameUiState(gameMode = mode, difficulty = difficulty, lives = 1)
+            GameMode.HARDCORE -> GameUiState(gameMode = mode, difficulty = difficulty, lives = 1, missions = initialMissions)
             GameMode.TIME_ATTACK -> GameUiState(
                 gameMode = mode,
                 difficulty = difficulty,
-                timeRemainingSeconds = 60
+                timeRemainingSeconds = 60,
+                missions = initialMissions
             )
 
-            else -> GameUiState(gameMode = mode, difficulty = difficulty)
+            else -> GameUiState(gameMode = mode, difficulty = difficulty, missions = initialMissions)
         }
         startFlipLoop()
         if (mode == GameMode.TIME_ATTACK) startCountdown()
     }
+
+    private fun generateMissions(): List<Mission> = listOf(
+        Mission("snaps", "Make 10 correct SNAPs", 10, rewardPoints = 500),
+        Mission("round", "Reach Round 5", 5, rewardPoints = 1000),
+        Mission("combo", "Get a 3x Combo", 3, rewardPoints = 800)
+    )
 
     private fun startCountdown() {
         countdownJob = viewModelScope.launch {
@@ -174,7 +183,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val multiplier = comboMultiplier(newCombo)
             val points = calculateScore(newRound) * multiplier
             _uiState.update {
-                it.copy(
+                val updatedState = it.copy(
                     isMatchActive = false,
                     score = it.score + points,
                     tigerReaction = TigerReactionState.HAPPY,
@@ -186,6 +195,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     comboMultiplier = multiplier,
                     maxCombo = maxOf(it.maxCombo, newCombo)
                 )
+                updateMissions(updatedState)
             }
             return
         }
@@ -232,6 +242,20 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         reaction: TigerReactionState,
         selectionOutcome: SelectionOutcome = SelectionOutcome.NONE
     ) {
+        if (_uiState.value.gameMode == GameMode.TIME_ATTACK) {
+            _uiState.update {
+                it.copy(
+                    isMatchActive = false,
+                    tigerReaction = reaction,
+                    selectionOutcome = selectionOutcome,
+                    selectionEventCount = if (selectionOutcome == SelectionOutcome.NONE)
+                        it.selectionEventCount else it.selectionEventCount + 1,
+                    comboCount = 0,
+                    comboMultiplier = 1
+                )
+            }
+            return
+        }
         val newLives = _uiState.value.lives - 1
         _uiState.update {
             it.copy(
@@ -281,6 +305,32 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         combo >= 5 -> 3
         combo >= 2 -> 2
         else -> 1
+    }
+
+    private fun updateMissions(state: GameUiState): GameUiState {
+        var addedScore = 0
+        val updatedMissions = state.missions.map { mission ->
+            if (mission.isCompleted) return@map mission
+
+            val currentValue = when (mission.id) {
+                "snaps" -> state.matchesFound
+                "round" -> state.currentRound
+                "combo" -> state.maxCombo
+                else -> mission.currentValue
+            }
+            
+            val isCompleted = currentValue >= mission.targetValue
+            if (isCompleted && !mission.isCompleted) {
+                addedScore += mission.rewardPoints
+            }
+            
+            mission.copy(currentValue = minOf(currentValue, mission.targetValue), isCompleted = isCompleted)
+        }
+        
+        return state.copy(
+            missions = updatedMissions,
+            score = state.score + addedScore
+        )
     }
 
     private fun cancelAllJobs() {
