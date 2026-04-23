@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -85,6 +86,8 @@ private val TextOffWhite = Color(0xFFFFF6E5)
 
 @Composable
 fun HomeScreen(
+    isMuted: Boolean,
+    onMutedChange: (Boolean) -> Unit,
     onStartGame: (GameMode, Difficulty) -> Unit,
     onViewLeaderboard: () -> Unit
 ) {
@@ -171,7 +174,7 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-
+            Spacer(Modifier.height(30.dp))
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.graphicsLayer {
@@ -342,9 +345,33 @@ fun HomeScreen(
                     onClick = { onStartGame(selectedMode, selectedDifficulty) },
                     shimmerOffset = shimmerOffset
                 )
-
-                LeaderboardButton(onClick = onViewLeaderboard)
             }
+        }
+        
+        IconButton(
+            onClick = onViewLeaderboard,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = 40.dp, start = 16.dp)
+                .background(Color(0x88000000), CircleShape)
+        ) {
+            Text(
+                text = "🏆",
+                fontSize = 24.sp
+            )
+        }
+        
+        IconButton(
+            onClick = { onMutedChange(!isMuted) },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 40.dp, end = 16.dp)
+                .background(Color(0x88000000), CircleShape)
+        ) {
+            Text(
+                text = if (isMuted) "🔇" else "🔊",
+                fontSize = 24.sp
+            )
         }
     }
 }
@@ -757,40 +784,4 @@ private fun DifficultyChip(
     }
 }
 
-@Composable
-private fun LeaderboardButton(onClick: () -> Unit) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        label = "pressScale"
-    )
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .scale(pressScale)
-            .clip(RoundedCornerShape(16.dp))
-            .background(Brush.horizontalGradient(listOf(Color(0x22FFFFFF), Color(0x11FFFFFF))))
-            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
-            .clickable(interactionSource = interactionSource, indication = null) { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(text = "🏆", fontSize = 18.sp)
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = "VIEW LEADERBOARD",
-                color = BrandGoldLight,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Serif,
-                letterSpacing = 2.sp
-            )
-        }
-    }
-}

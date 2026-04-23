@@ -1,5 +1,22 @@
 package app.krafted.tigerluckysnap.ui
 
+import android.content.Context
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import android.view.SoundEffectConstants
+import app.krafted.tigerluckysnap.util.SoundManager
+import app.krafted.tigerluckysnap.viewmodel.FeedbackEvent
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.unit.IntOffset
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -29,6 +46,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -77,14 +95,57 @@ import kotlinx.coroutines.delay
 fun GameScreen(
     mode: GameMode,
     difficulty: Difficulty,
+    isMuted: Boolean,
     onGameOver: (Int) -> Unit,
     onBack: () -> Unit,
     viewModel: GameViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val view = LocalView.current
+    val soundManager = remember { SoundManager(context) }
+    val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator }
     var showExitDialog by remember { mutableStateOf(false) }
     var missionsExpanded by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        onDispose { soundManager.release() }
+    }
+
+    var shakeTrigger by remember { mutableStateOf(false) }
+
+    val shakeAnim = remember { Animatable(0f) }
+
+    LaunchedEffect(shakeTrigger) {
+        viewModel.feedbackEvents.collectLatest { event ->
+            when (event) {
+                FeedbackEvent.CORRECT_MATCH -> {
+                    if (!isMuted) {
+                        soundManager.playCorrectSound()
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 30, 50, 40), -1))
+                        } else {
+                            @Suppress("DEPRECATION")
+                            vibrator.vibrate(longArrayOf(0, 30, 50, 40), -1)
+                        }
+                    }
+                }
+                FeedbackEvent.WRONG_MATCH -> {
+                    if (!isMuted) {
+                        soundManager.playWrongSound()
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            vibrator.vibrate(VibrationEffect.createOneShot(150, VibrationEffect.DEFAULT_AMPLITUDE))
+                        } else {
+                            @Suppress("DEPRECATION")
+                            vibrator.vibrate(150)
+                        }
+                    }
+                    shakeTrigger = true
+                }
+            }
+        }
+    }
 
     BackHandler(enabled = !uiState.isGameOver) {
         showExitDialog = true
@@ -399,6 +460,7 @@ fun GameScreen(
                     .fillMaxWidth()
                     .height(280.dp)
                     .padding(horizontal = 8.dp)
+                    .offset { IntOffset(shakeAnim.value.toInt(), 0) }
                     .shadow(24.dp, RoundedCornerShape(32.dp))
                     .border(2.dp, Brush.linearGradient(listOf(Color(0xFFFFD700), Color(0xFFB8860B))), RoundedCornerShape(32.dp))
                     .background(
@@ -492,6 +554,11 @@ fun GameScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+            val pressScale by animateFloatAsState(targetValue = if (isPressed) 0.9f else 1f, label = "pressScale")
+            val finalButtonScale = snapButtonScale * pressScale
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -520,11 +587,17 @@ fun GameScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(102.dp)
-                        .scale(snapButtonScale)
+                        .scale(finalButtonScale)
                         .shadow(24.dp, RoundedCornerShape(30.dp), spotColor = Color(0xFFFF0000))
                         .clip(RoundedCornerShape(30.dp))
-                        .clickable {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) {
+                            if (!isMuted) {
+                                view.playSoundEffect(SoundEffectConstants.CLICK)
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
                             viewModel.onSnapTapped()
                         }
                         .background(

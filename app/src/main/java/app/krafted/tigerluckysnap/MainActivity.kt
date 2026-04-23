@@ -1,10 +1,15 @@
 package app.krafted.tigerluckysnap
 
+import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -23,6 +28,7 @@ import app.krafted.tigerluckysnap.ui.theme.TigerLuckySnapTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        volumeControlStream = AudioManager.STREAM_MUSIC
         enableEdgeToEdge()
         setContent {
             TigerLuckySnapTheme {
@@ -35,6 +41,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun TigerApp() {
     val navController = rememberNavController()
+    var isMuted by remember { mutableStateOf(false) }
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") {
             SplashScreen(
@@ -59,6 +66,8 @@ fun TigerApp() {
         }
         composable("home") {
             HomeScreen(
+                isMuted = isMuted,
+                onMutedChange = { isMuted = it },
                 onStartGame = { mode, difficulty ->
                     navController.navigate("game/${mode.name}/${difficulty.name}")
                 },
@@ -81,6 +90,7 @@ fun TigerApp() {
             GameScreen(
                 mode = mode,
                 difficulty = difficulty,
+                isMuted = isMuted,
                 onGameOver = { score ->
                     navController.navigate("gameOver/$score/${mode.name}/${difficulty.name}") {
                         popUpTo("home")

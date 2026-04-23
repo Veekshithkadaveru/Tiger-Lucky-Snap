@@ -20,6 +20,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
+
+enum class FeedbackEvent {
+    CORRECT_MATCH,
+    WRONG_MATCH
+}
+
 class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val deck = SymbolDeck()
@@ -27,6 +35,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(GameUiState())
     val uiState: StateFlow<GameUiState> = _uiState.asStateFlow()
+
+    private val _feedbackEventChannel = Channel<FeedbackEvent>(Channel.BUFFERED)
+    val feedbackEvents = _feedbackEventChannel.receiveAsFlow()
 
     private var flipJob: Job? = null
     private var snapWindowJob: Job? = null
@@ -171,6 +182,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         if (visuallyMatches && !currentMatchResolved) {
             currentMatchResolved = true
+            _feedbackEventChannel.trySend(FeedbackEvent.CORRECT_MATCH)
             if (snapWindowActive) {
                 snapWindowActive = false
                 snapWindowJob?.cancel()
@@ -202,6 +214,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         if (visuallyMatches) return
 
+        _feedbackEventChannel.trySend(FeedbackEvent.WRONG_MATCH)
         loseLife(TigerReactionState.NEUTRAL, SelectionOutcome.WRONG)
     }
 
